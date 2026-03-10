@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, User, MessageCircle, Share2, Sun, Moon, ExternalLink, FolderOpen, ClipboardList, Calendar, Globe, Heart, Lock } from "lucide-react";
+import { Home, BookOpen, User, MessageCircle, Share2, Sun, Moon, ExternalLink, FolderOpen, ClipboardList, Calendar, Globe, Heart, Lock, Code, Download } from "lucide-react";
 import { useAppSettings } from "@/contexts/AppSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/use-theme";
@@ -122,6 +122,19 @@ export function DesktopUserSidebar() {
           Share App
         </button>
       </nav>
+
+      {/* Developer Credit */}
+      <div className="border-t border-border p-2 mt-auto shrink-0">
+        <a
+          href="https://ridoan-zisan.netlify.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors"
+        >
+          <Code className="h-3.5 w-3.5" />
+          <span>Md Ridoan Mahmud Zisan</span>
+        </a>
+      </div>
     </aside>
   );
 }

@@ -6,11 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Exam, ExamAnswer, ExamSubmission } from "@/types/exam";
 import { uploadToImgBB } from "@/lib/imgbb";
 import { toast } from "sonner";
-import { Camera, Clock, ChevronLeft, ChevronRight, Send, Trophy, CheckCircle, XCircle, ArrowLeft, Award, TrendingDown } from "lucide-react";
+import { Camera, Clock, ChevronLeft, ChevronRight, Send, Trophy, CheckCircle, XCircle, ArrowLeft, Award, TrendingDown, Shield, AlertTriangle, Monitor, Copy, MousePointer, Fingerprint, Wifi, Maximize } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useExamSecurity } from "@/hooks/useExamSecurity";
 
 export default function ExamTakePage() {
   const { examId } = useParams<{ examId: string }>();
@@ -31,8 +32,22 @@ export default function ExamTakePage() {
   const [showRankings, setShowRankings] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [myRank, setMyRank] = useState<number | null>(null);
+  const [showRulesPage, setShowRulesPage] = useState(false);
+  const [rulesAccepted, setRulesAccepted] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Exam security hook
+  const handleAutoSubmit = useCallback(() => {
+    if (!submitted && started) {
+      handleSubmit();
+    }
+  }, [submitted, started]);
+
+  const { tabSwitchCount, maxTabSwitches } = useExamSecurity({
+    onAutoSubmit: handleAutoSubmit,
+    enabled: started && !submitted,
+  });
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -84,6 +99,7 @@ export default function ExamTakePage() {
     if (!exam) return;
     setTimeLeft(exam.duration * 60);
     setStarted(true);
+    setShowRulesPage(false);
     const initial: Record<string, ExamAnswer> = {};
     exam.questions.forEach(q => {
       initial[q.id] = { questionId: q.id, marks: q.marks };
@@ -137,6 +153,15 @@ export default function ExamTakePage() {
     const obtainedMarks = Math.max(0, correctMarks - negativeTotal);
     const passed = obtainedMarks >= (exam.passMark || 0);
 
+    // Collect device info
+    const deviceInfo = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenRes: `${screen.width}x${screen.height}`,
+      tabSwitches: tabSwitchCount,
+    };
+
     const submission: Omit<ExamSubmission, "id"> = {
       examId: exam.id,
       userId: user.uid,
@@ -164,7 +189,7 @@ export default function ExamTakePage() {
       toast.error(err.message);
     }
     setSubmitting(false);
-  }, [exam, user, userDoc, answers, submitting]);
+  }, [exam, user, userDoc, answers, submitting, tabSwitchCount]);
 
   const loadRankings = async () => {
     if (!exam || !user) return;
@@ -195,7 +220,6 @@ export default function ExamTakePage() {
           <p className="text-sm text-muted-foreground mb-4">Your Result</p>
           <div className="text-4xl font-bold text-foreground">{result.obtainedMarks}/{result.totalMarks}</div>
           
-          {/* Pass/Fail badge */}
           <div className="mt-3">
             <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold ${passed ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-destructive"}`}>
               {passed ? <><Award className="h-4 w-4" /> Passed</> : <><TrendingDown className="h-4 w-4" /> Failed</>}
@@ -218,7 +242,6 @@ export default function ExamTakePage() {
           )}
         </div>
 
-        {/* Answer review */}
         <div className="mt-6 space-y-3">
           <h3 className="font-medium text-foreground">Answer Review</h3>
           {exam.questions.map((q, idx) => {
@@ -261,10 +284,9 @@ export default function ExamTakePage() {
                 {q.type === "written" && !ans?.writtenImageUrl && (
                   <p className="text-xs text-muted-foreground italic mt-2">No answer submitted</p>
                 )}
-                {/* Show correct written answer after submission */}
                 {q.type === "written" && q.writtenAnswer && (
                   <div className="mt-2 p-2 bg-green-500/10 rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Correct Answer:</p>
+                    <p className="text-xs text-muted-foreground mb-1">Correct Answer:</p>
                     {q.writtenAnswer.startsWith("http") ? (
                       <img src={q.writtenAnswer} alt="Correct Answer" className="h-32 rounded-lg object-contain" />
                     ) : (
@@ -277,7 +299,6 @@ export default function ExamTakePage() {
           })}
         </div>
 
-        {/* Rankings - only after exam ends AND result published */}
         {examEnded && exam.resultPublished && (
           <div className="mt-6">
             {!showRankings ? (
@@ -325,6 +346,128 @@ export default function ExamTakePage() {
             <p className="text-sm text-muted-foreground">Result has not been published yet. Please wait for the admin to publish results.</p>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Rules page before starting exam
+  if (showRulesPage && !started) {
+    return (
+      <div className="p-4 max-w-lg mx-auto animate-fade-in">
+        <button onClick={() => { setShowRulesPage(false); setRulesAccepted(false); }} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-primary p-4 text-primary-foreground text-center">
+            <Shield className="h-8 w-8 mx-auto mb-2" />
+            <h2 className="text-lg font-semibold">পরীক্ষার নিয়মাবলী</h2>
+            <p className="text-sm opacity-80 mt-1">{exam.title}</p>
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Exam Info */}
+            <div className="bg-accent/50 rounded-lg p-3 space-y-1.5 text-sm">
+              <p className="font-medium text-foreground mb-2">📋 পরীক্ষার তথ্য:</p>
+              <p className="text-muted-foreground">• প্রশ্ন সংখ্যা: <span className="text-foreground font-medium">{exam.questions.length}</span></p>
+              <p className="text-muted-foreground">• মোট নম্বর: <span className="text-foreground font-medium">{exam.totalMarks}</span></p>
+              <p className="text-muted-foreground">• সময়: <span className="text-foreground font-medium">{exam.duration} মিনিট</span></p>
+              {(exam.negativeMark || 0) > 0 && (
+                <p className="text-muted-foreground">• নেগেটিভ মার্কিং: <span className="text-foreground font-medium">-{exam.negativeMark} প্রতি ভুল উত্তরে</span></p>
+              )}
+              {(exam.passMark || 0) > 0 && (
+                <p className="text-muted-foreground">• পাস মার্ক: <span className="text-foreground font-medium">{exam.passMark}</span></p>
+              )}
+            </div>
+
+            {/* Security Rules */}
+            <div className="space-y-2.5">
+              <p className="font-medium text-foreground text-sm">🔒 সিকিউরিটি নিয়মাবলী:</p>
+              
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <Maximize className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">ফুলস্ক্রিন মোড</p>
+                  <p className="text-xs text-muted-foreground">পরীক্ষা চলাকালীন ফুলস্ক্রিন মোডে থাকতে হবে</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <Monitor className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">ট্যাব সুইচ ডিটেকশন</p>
+                  <p className="text-xs text-muted-foreground">সর্বোচ্চ {maxTabSwitches} বার ট্যাব সুইচ করা যাবে, এরপর অটো সাবমিট হবে</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <Copy className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">কপি/পেস্ট অক্ষম</p>
+                  <p className="text-xs text-muted-foreground">পরীক্ষা চলাকালীন কপি, পেস্ট ও কাট করা যাবে না</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <MousePointer className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">রাইট ক্লিক অক্ষম</p>
+                  <p className="text-xs text-muted-foreground">পরীক্ষায় রাইট ক্লিক ব্যবহার করা যাবে না</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <Fingerprint className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">ডিভাইস ট্র্যাকিং</p>
+                  <p className="text-xs text-muted-foreground">আপনার ডিভাইসের তথ্য রেকর্ড করা হবে</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <Wifi className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">IP ট্র্যাকিং</p>
+                  <p className="text-xs text-muted-foreground">আপনার IP Address রেকর্ড করা হবে</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-2.5 rounded-lg bg-accent/30">
+                <AlertTriangle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">অটো সাবমিট</p>
+                  <p className="text-xs text-muted-foreground">সন্দেহজনক কার্যকলাপ শনাক্ত হলে পরীক্ষা স্বয়ংক্রিয়ভাবে সাবমিট হবে</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+              ⚠️ পরীক্ষা শুরু করলে উপরের সকল নিয়ম প্রযোজ্য হবে। অসদুপায় অবলম্বন করলে পরীক্ষা বাতিল হতে পারে।
+            </div>
+
+            {/* Accept checkbox */}
+            <label className="flex items-start gap-3 cursor-pointer p-2">
+              <input
+                type="checkbox"
+                checked={rulesAccepted}
+                onChange={(e) => setRulesAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+              />
+              <span className="text-sm text-foreground">আমি উপরের সকল নিয়ম পড়েছি এবং মেনে চলতে সম্মত।</span>
+            </label>
+
+            {/* Start button */}
+            <button
+              onClick={startExam}
+              disabled={!rulesAccepted}
+              className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium text-sm disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              <Shield className="h-4 w-4" /> পরীক্ষা শুরু করুন
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -396,8 +539,8 @@ export default function ExamTakePage() {
             </div>
           )}
           {examStarted && !examEnded && (
-            <button onClick={startExam} className="mt-6 w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium text-sm">
-              Start Exam
+            <button onClick={() => setShowRulesPage(true)} className="mt-6 w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium text-sm flex items-center justify-center gap-2">
+              <Shield className="h-4 w-4" /> Start Exam
             </button>
           )}
         </div>
@@ -409,7 +552,15 @@ export default function ExamTakePage() {
   const question = exam.questions[currentQ];
 
   return (
-    <div className="p-4 max-w-2xl mx-auto animate-fade-in">
+    <div className="p-4 max-w-2xl mx-auto animate-fade-in select-none">
+      {/* Security status bar */}
+      {tabSwitchCount > 0 && (
+        <div className="mb-2 flex items-center gap-2 px-3 py-1.5 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Tab switches: {tabSwitchCount}/{maxTabSwitches}
+        </div>
+      )}
+
       {/* Timer bar */}
       <div className="sticky top-0 z-40 bg-background border-b border-border -mx-4 px-4 py-2 flex items-center justify-between">
         <span className="text-sm text-foreground font-medium">Q {currentQ + 1}/{exam.questions.length}</span>
@@ -434,7 +585,7 @@ export default function ExamTakePage() {
       <div className="bg-card border border-border rounded-xl p-4">
         <p className="text-sm font-medium text-foreground mb-1">Question {currentQ + 1} <span className="text-muted-foreground">({question.marks} marks)</span></p>
         <p className="text-foreground">{question.questionText}</p>
-        {question.questionImage && <img src={question.questionImage} alt="" className="mt-3 max-h-48 rounded-lg object-contain" />}
+        {question.questionImage && <img src={question.questionImage} alt="" className="mt-3 max-h-48 rounded-lg object-contain pointer-events-none" />}
 
         {question.type === "mcq" && question.options && (
           <div className="mt-4 space-y-2">
@@ -448,7 +599,7 @@ export default function ExamTakePage() {
                     {String.fromCharCode(65 + oIdx)}
                   </span>
                   <span className="flex-1">{opt.text}</span>
-                  {opt.image && <img src={opt.image} alt="" className="h-10 rounded object-contain" />}
+                  {opt.image && <img src={opt.image} alt="" className="h-10 rounded object-contain pointer-events-none" />}
                 </button>
               );
             })}
@@ -464,7 +615,7 @@ export default function ExamTakePage() {
               <Camera className="h-4 w-4" /> {uploadingImage ? "Uploading..." : "Take Photo / Upload Image"}
             </button>
             {answers[question.id]?.writtenImageUrl && (
-              <img src={answers[question.id].writtenImageUrl} alt="Answer" className="mt-3 max-h-48 rounded-lg object-contain mx-auto" />
+              <img src={answers[question.id].writtenImageUrl} alt="Answer" className="mt-3 max-h-48 rounded-lg object-contain mx-auto pointer-events-none" />
             )}
           </div>
         )}
