@@ -540,6 +540,9 @@ export function FloatingButtons({ course }: FloatingButtonsProps = {}) {
                 <ArrowLeft className="h-4 w-4" />
               </button>
             )}
+            {screen === "main" && settings.appLogo && (
+              <img src={settings.appLogo} alt="" className="h-6 w-6 rounded object-contain" />
+            )}
             <span className="text-sm font-medium flex-1 truncate">
               {screenTitle[screen]}
             </span>

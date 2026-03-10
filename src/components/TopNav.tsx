@@ -41,15 +41,9 @@ export function TopNav({ onMenuClick, hideMenu }: Props) {
         </div>
         <div className="flex items-center gap-1">
           {installPrompt && (
-            isMobile ? (
-              <button onClick={handleInstall} className="p-2 text-foreground rounded-md hover:bg-accent" title="Install App">
-                <Download className="h-5 w-5" />
-              </button>
-            ) : (
-              <button onClick={handleInstall} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground">
-                <Download className="h-4 w-4" /> Install
-              </button>
-            )
+            <button onClick={handleInstall} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+              <Download className="h-4 w-4" /> Install
+            </button>
           )}
           <button onClick={toggle} className="p-2 text-foreground rounded-md hover:bg-accent">
             {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
